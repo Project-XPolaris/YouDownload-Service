@@ -1,0 +1,5 @@
+/download
+/tmp
+*.db
+main
+.idea
