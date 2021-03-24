@@ -3,16 +3,14 @@ module github.com/projectxpolaris/youdownload-server
 go 1.13
 
 require (
-	github.com/ahmetb/go-linq/v3 v3.2.0 // indirect
+	github.com/ahmetb/go-linq/v3 v3.2.0
 	github.com/allentom/haruka v0.0.0-20210318094355-e84d0a169cfa
 	github.com/anacrolix/multiless v0.1.0 // indirect
 	github.com/anacrolix/stm v0.3.0-alpha // indirect
 	github.com/anacrolix/torrent v1.25.1
 	github.com/asdine/storm/v3 v3.2.1
-	github.com/elazarl/go-bindata-assetfs v1.0.1 // indirect
+	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/elliotchance/orderedmap v1.4.0 // indirect
-	github.com/evnix/boltdbweb v0.0.0-20191029203843-5b16e6623bd9 // indirect
-	github.com/gin-gonic/gin v1.6.3 // indirect
 	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/btree v1.0.1 // indirect

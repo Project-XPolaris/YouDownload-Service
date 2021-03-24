@@ -19,6 +19,7 @@ func RunApiApplication() {
 	e.Router.GET("/tasks", taskInfoHandler)
 	e.Router.POST("/task/magnet", createMargetTask)
 	e.Router.POST("/task/file", createTorrentTask)
+	e.Router.POST("/task/download/file", newFileDownloadTask)
 	e.Router.POST("/task/start", startTaskHandler)
 	e.Router.POST("/task/stop", stopTaskHandler)
 	e.Router.POST("/task/delete", deleteTask)

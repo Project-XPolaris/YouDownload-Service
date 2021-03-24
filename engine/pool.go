@@ -1,8 +1,12 @@
 package engine
 
 import (
+	"context"
+	"fmt"
 	"github.com/anacrolix/torrent"
+	"github.com/cavaliercoder/grab"
 	"github.com/rs/xid"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -42,14 +46,18 @@ type Task interface {
 	Delete() error
 	GetSpeed() int64
 	TaskStatus() TaskStatus
-	SavedTaskId() int
+	GetSaveTask() SaveTask
 }
 type TorrentTask struct {
 	TaskId    string
 	Torrent   *torrent.Torrent
 	Status    TaskStatus
 	Speed     int64
-	SavedTask *SavedTask
+	SavedTask *SavedTorrentTask
+}
+
+func (t *TorrentTask) GetSaveTask() SaveTask {
+	return t.SavedTask
 }
 
 func (t *TorrentTask) SavedTaskId() int {
@@ -132,13 +140,13 @@ func (t *TorrentTask) RunDownloadProgress(engine *Engine) {
 		<-t.Torrent.GotInfo()
 		if t.SavedTask == nil {
 			savedTask := NewSavedTask(t.TaskId, t.Torrent.Metainfo(), Downloading)
-			err := engine.Database.Save(savedTask)
+			err := savedTask.Save(engine.Database)
 			if err != nil {
 				Logger.Error(err)
 			}
 			t.SavedTask = savedTask
 		}
-		err := engine.Database.UpdateTaskStatus(t.SavedTask, Downloading)
+		err := t.SavedTask.UpdateTaskStatus(engine.Database, Downloading)
 		if err != nil {
 			Logger.Error(err)
 		}
@@ -178,7 +186,7 @@ func (p *TaskPool) newTorrentTaskFromMagnetLink(link string) (*TorrentTask, erro
 	return task, nil
 }
 
-func (p *TaskPool) newTorrentTaskFromSaveTask(savedTask *SavedTask) (*TorrentTask, error) {
+func (p *TaskPool) newTorrentTaskFromSaveTask(savedTask *SavedTorrentTask) (*TorrentTask, error) {
 	t, err := p.Client.AddTorrent(savedTask.MetaInfo)
 	if err != nil {
 		return nil, err
@@ -210,4 +218,122 @@ func (p *TaskPool) newTorrentTaskFromFile(filePath string) (*TorrentTask, error)
 		return nil, err
 	}
 	return task, nil
+}
+
+type DownloadTask struct {
+	TaskId   string
+	Request  *grab.Request
+	Response *grab.Response
+	Url      string
+	SavePath string
+	Cancel   context.CancelFunc
+	Status   TaskStatus
+	SaveTask *SaveFileDownloadTask
+}
+
+func (t *DownloadTask) GetSaveTask() SaveTask {
+	return t.SaveTask
+}
+
+func (t *DownloadTask) Id() string {
+	return t.TaskId
+}
+
+func (t *DownloadTask) Name() string {
+	if t.Response != nil {
+		return filepath.Base(t.Response.Filename)
+	}
+	return t.Id()
+}
+
+func (t *DownloadTask) ByteComplete() int64 {
+	if t.Response != nil {
+		return t.Response.BytesComplete()
+	}
+	return 0
+}
+
+func (t *DownloadTask) Length() int64 {
+	if t.Response != nil {
+		return t.Response.Size
+	}
+	return 0
+}
+
+func (t *DownloadTask) Start() error {
+	return nil
+}
+
+func (t *DownloadTask) Stop() error {
+	t.Cancel()
+	return nil
+}
+
+func (t *DownloadTask) Delete() error {
+	return nil
+}
+
+func (t *DownloadTask) GetSpeed() int64 {
+	if t.Request != nil {
+		return int64(t.Response.BytesPerSecond())
+	}
+	return 0
+}
+
+func (t *DownloadTask) TaskStatus() TaskStatus {
+	return t.Status
+}
+
+func (t *DownloadTask) SavedTaskId() int {
+	return t.SaveTask.ID
+}
+
+func NewDownloadTask(link string) *DownloadTask {
+	return &DownloadTask{
+		TaskId:   xid.New().String(),
+		SavePath: "./download",
+		Url:      link,
+		Status:   Downloading,
+	}
+}
+
+func (t *DownloadTask) Run(e *Engine) {
+	request, err := grab.NewRequest(t.SavePath, t.Url)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	request.BufferSize = 1024
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cancel = cancel
+	request = request.WithContext(ctx)
+	Logger.WithField("id", t.Id).WithField("url", request.URL()).Info("Downloading")
+	t.Request = request
+
+	// request download url
+	response := e.FileDownloadClient.Do(request)
+	t.Response = response
+	// update with request result
+
+	//run for done chan
+	go func() {
+		select {
+		case <-response.Done:
+			t.Status = Complete
+			Logger.WithField("id", t.Id).Info("task complete")
+		case <-ctx.Done():
+			t.Status = Stop
+			Logger.WithField("id", t.Id).Info("task interrupt")
+		}
+	}()
+}
+
+func (p *TaskPool) newFileTaskFromSaveTask(savedTask *SaveFileDownloadTask) *DownloadTask {
+	return &DownloadTask{
+		TaskId:   savedTask.TaskId,
+		SavePath: savedTask.SavePath,
+		Url:      savedTask.Url,
+		Status:   savedTask.Status,
+		SaveTask: savedTask,
+	}
 }

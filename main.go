@@ -32,7 +32,6 @@ func Program() {
 	if err != nil {
 		Logger.Fatal(err)
 	}
-
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go api.RunApiApplication()

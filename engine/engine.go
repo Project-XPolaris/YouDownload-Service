@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/ahmetb/go-linq/v3"
 	"github.com/anacrolix/torrent"
+	"github.com/cavaliercoder/grab"
 	"github.com/sirupsen/logrus"
 )
 
@@ -14,10 +15,11 @@ var (
 )
 
 type Engine struct {
-	Client   *torrent.Client
-	Pool     *TaskPool
-	Config   *torrent.ClientConfig
-	Database *Database
+	TorrentClient      *torrent.Client
+	FileDownloadClient *grab.Client
+	Pool               *TaskPool
+	Config             *torrent.ClientConfig
+	Database           *Database
 }
 
 func NewEngine() error {
@@ -35,14 +37,14 @@ func NewEngine() error {
 		return err
 	}
 	engine := &Engine{
-		Client:   client,
-		Pool:     &pool,
-		Config:   config,
-		Database: database,
+		TorrentClient:      client,
+		FileDownloadClient: grab.NewClient(),
+		Pool:               &pool,
+		Config:             config,
+		Database:           database,
 	}
 	pool.Engine = engine
 	DefaultEngine = engine
-
 	//restore task
 	savedTasks, err := database.ReadSavedTask()
 	if err != nil {
@@ -63,12 +65,25 @@ func NewEngine() error {
 			"name": task.Name(),
 		}).Info("restore task success")
 	}
+	saveFileDownloadTasks, err := database.ReadSavedFileDownloadTask()
+	if err != nil {
+		return err
+	}
+	for _, saveFileDownloadTask := range saveFileDownloadTasks {
+		task := engine.Pool.newFileTaskFromSaveTask(saveFileDownloadTask)
+		engine.Pool.Lock()
+		engine.Pool.Tasks = append(engine.Pool.Tasks, task)
+		engine.Pool.Unlock()
+		if task.Status == Downloading {
+			go task.Run(engine)
+		}
+	}
 	Logger.Info("engine init success")
 	return nil
 }
 
 func (e *Engine) Stop() error {
-	e.Client.Close()
+	e.TorrentClient.Close()
 	err := e.Database.DB.Close()
 	if err != nil {
 		return err
@@ -83,7 +98,7 @@ func (e *Engine) StopTask(id string) error {
 		if err != nil {
 			return err
 		}
-		err = e.Database.UpdateTaskStatus(&SavedTask{ID: task.SavedTaskId()}, Stop)
+		err = task.GetSaveTask().UpdateTaskStatus(e.Database, Stop)
 		if err != nil {
 			return err
 		}
@@ -95,17 +110,27 @@ func (e *Engine) StartTask(id string) error {
 	task := e.Pool.FindTaskById(id)
 	if task != nil {
 		err := task.Start()
+		if downloadTask, ok := task.(*DownloadTask); ok {
+			err = e.startDownloadTask(downloadTask)
+			if err != nil {
+				return err
+			}
+		}
 		if err != nil {
 			return err
 		}
-		err = e.Database.UpdateTaskStatus(&SavedTask{ID: task.SavedTaskId()}, Downloading)
+		err = task.GetSaveTask().UpdateTaskStatus(e.Database, Downloading)
+
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
-
+func (e *Engine) startDownloadTask(task *DownloadTask) error {
+	go task.Run(e)
+	return nil
+}
 func (e *Engine) DeleteTask(id string) error {
 	task := e.Pool.FindTaskById(id)
 	if task == nil {
@@ -115,7 +140,7 @@ func (e *Engine) DeleteTask(id string) error {
 	if err != nil {
 		return err
 	}
-	err = e.Database.RemoveTask(id)
+	err = task.GetSaveTask().RemoveTask(e.Database)
 	if err != nil {
 		return err
 	}
@@ -154,4 +179,23 @@ func (e *Engine) CreateTorrentTask(torrentFilePath string) error {
 	go task.RunPiecesChangeSub()
 	go task.RunRateStaticSub()
 	return nil
+}
+
+func (e *Engine) CreateDownloadTask(link string) {
+	task := NewDownloadTask(link)
+	go task.Run(e)
+	e.Pool.Lock()
+	e.Pool.Tasks = append(e.Pool.Tasks, task)
+	e.Pool.Unlock()
+	saveTask := SaveFileDownloadTask{
+		TaskId:   task.TaskId,
+		Url:      task.Url,
+		SavePath: task.SavePath,
+		Status:   task.Status,
+	}
+	task.SaveTask = &saveTask
+	err := saveTask.Save(e.Database)
+	if err != nil {
+		Logger.Error(err)
+	}
 }
