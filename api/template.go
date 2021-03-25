@@ -21,6 +21,7 @@ type BaseTaskTemplate struct {
 	Speed    int64       `json:"speed"`
 	ETA      int64       `json:"eta"`
 	Extra    interface{} `json:"extra"`
+	Type     string      `json:"type"`
 }
 
 func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]interface{}) error {
@@ -41,6 +42,12 @@ func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]
 		extra := TorrentTaskExtra{}
 		extra.Assign(torrentTask)
 		t.Extra = extra
+	}
+	switch task.(type) {
+	case *engine.TorrentTask:
+		t.Type = "Torrent"
+	case *engine.DownloadTask:
+		t.Type = "Download"
 	}
 	return nil
 }

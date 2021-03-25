@@ -139,7 +139,7 @@ func (t *TorrentTask) RunDownloadProgress(engine *Engine) {
 	if t.Status == Estimate {
 		<-t.Torrent.GotInfo()
 		if t.SavedTask == nil {
-			savedTask := NewSavedTask(t.TaskId, t.Torrent.Metainfo(), Downloading)
+			savedTask := NewSavedTask(t.TaskId, t.Torrent.Metainfo(), Downloading, t.Name())
 			err := savedTask.Save(engine.Database)
 			if err != nil {
 				Logger.Error(err)
@@ -221,14 +221,15 @@ func (p *TaskPool) newTorrentTaskFromFile(filePath string) (*TorrentTask, error)
 }
 
 type DownloadTask struct {
-	TaskId   string
-	Request  *grab.Request
-	Response *grab.Response
-	Url      string
-	SavePath string
-	Cancel   context.CancelFunc
-	Status   TaskStatus
-	SaveTask *SaveFileDownloadTask
+	TaskId    string
+	Request   *grab.Request
+	Response  *grab.Response
+	Url       string
+	SavePath  string
+	Cancel    context.CancelFunc
+	Status    TaskStatus
+	SaveTask  *SaveFileDownloadTask
+	OnPrepare chan struct{}
 }
 
 func (t *DownloadTask) GetSaveTask() SaveTask {
@@ -242,6 +243,8 @@ func (t *DownloadTask) Id() string {
 func (t *DownloadTask) Name() string {
 	if t.Response != nil {
 		return filepath.Base(t.Response.Filename)
+	} else if t.SaveTask != nil {
+		return t.SaveTask.Name
 	}
 	return t.Id()
 }
@@ -290,10 +293,11 @@ func (t *DownloadTask) SavedTaskId() int {
 
 func NewDownloadTask(link string) *DownloadTask {
 	return &DownloadTask{
-		TaskId:   xid.New().String(),
-		SavePath: "./download",
-		Url:      link,
-		Status:   Downloading,
+		TaskId:    xid.New().String(),
+		SavePath:  "./download",
+		Url:       link,
+		Status:    Downloading,
+		OnPrepare: make(chan struct{}),
 	}
 }
 
@@ -309,12 +313,11 @@ func (t *DownloadTask) Run(e *Engine) {
 	request = request.WithContext(ctx)
 	Logger.WithField("id", t.Id).WithField("url", request.URL()).Info("Downloading")
 	t.Request = request
-
 	// request download url
 	response := e.FileDownloadClient.Do(request)
 	t.Response = response
+	t.OnPrepare <- struct{}{}
 	// update with request result
-
 	//run for done chan
 	go func() {
 		select {

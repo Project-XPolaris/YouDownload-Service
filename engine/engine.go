@@ -5,6 +5,7 @@ import (
 	"github.com/anacrolix/torrent"
 	"github.com/cavaliercoder/grab"
 	"github.com/sirupsen/logrus"
+	"path/filepath"
 )
 
 var (
@@ -183,19 +184,23 @@ func (e *Engine) CreateTorrentTask(torrentFilePath string) error {
 
 func (e *Engine) CreateDownloadTask(link string) {
 	task := NewDownloadTask(link)
+	go func() {
+		<-task.OnPrepare
+		saveTask := SaveFileDownloadTask{
+			TaskId:   task.TaskId,
+			Url:      task.Url,
+			SavePath: task.SavePath,
+			Status:   task.Status,
+			Name:     filepath.Base(task.Response.Filename),
+		}
+		task.SaveTask = &saveTask
+		err := saveTask.Save(e.Database)
+		if err != nil {
+			Logger.Error(err)
+		}
+	}()
 	go task.Run(e)
 	e.Pool.Lock()
 	e.Pool.Tasks = append(e.Pool.Tasks, task)
 	e.Pool.Unlock()
-	saveTask := SaveFileDownloadTask{
-		TaskId:   task.TaskId,
-		Url:      task.Url,
-		SavePath: task.SavePath,
-		Status:   task.Status,
-	}
-	task.SaveTask = &saveTask
-	err := saveTask.Save(e.Database)
-	if err != nil {
-		Logger.Error(err)
-	}
 }

@@ -42,6 +42,7 @@ type SaveTask interface {
 
 type SavedTorrentTask struct {
 	ID       int `storm:"id,increment"`
+	Name     string
 	TaskId   string
 	Status   TaskStatus
 	MetaInfo *metainfo.MetaInfo
@@ -76,16 +77,18 @@ func (s *SavedTorrentTask) UpdateTaskStatus(database *Database, status TaskStatu
 	return nil
 }
 
-func NewSavedTask(taskId string, metaInfo metainfo.MetaInfo, status TaskStatus) *SavedTorrentTask {
+func NewSavedTask(taskId string, metaInfo metainfo.MetaInfo, status TaskStatus, name string) *SavedTorrentTask {
 	return &SavedTorrentTask{
 		TaskId:   taskId,
 		MetaInfo: &metaInfo,
 		Status:   status,
+		Name:     name,
 	}
 }
 
 type SaveFileDownloadTask struct {
 	ID       int `storm:"id,increment"`
+	Name     string
 	TaskId   string
 	Url      string
 	SavePath string
