@@ -1,0 +1,4 @@
+addr: :5700
+paths:
+  tmp: ./data/tmp
+  download: ./data/download

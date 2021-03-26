@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/allentom/haruka"
+	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 )
@@ -23,5 +24,5 @@ func RunApiApplication() {
 	e.Router.POST("/task/start", startTaskHandler)
 	e.Router.POST("/task/stop", stopTaskHandler)
 	e.Router.POST("/task/delete", deleteTask)
-	e.RunAndListen(":5700")
+	e.RunAndListen(config.Instance.Addr)
 }

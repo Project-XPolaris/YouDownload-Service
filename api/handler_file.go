@@ -16,8 +16,14 @@ var newFileDownloadTask haruka.RequestHandler = func(context *haruka.Context) {
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 	}
-	engine.DefaultEngine.CreateDownloadTask(requestBody.Link)
+	task := engine.DefaultEngine.CreateDownloadTask(requestBody.Link)
+	template := BaseTaskTemplate{}
+	err = template.Serializer(task, nil)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
 	context.JSON(haruka.JSON{
 		"success": true,
+		"task":    template,
 	})
 }

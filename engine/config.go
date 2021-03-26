@@ -1,9 +1,12 @@
 package engine
 
-import "github.com/anacrolix/torrent"
+import (
+	"github.com/anacrolix/torrent"
+	"github.com/projectxpolaris/youdownload-server/config"
+)
 
 func NewConfig() *torrent.ClientConfig {
-	config := torrent.NewDefaultClientConfig()
-	config.DataDir = "./download"
-	return config
+	torrentClientConfig := torrent.NewDefaultClientConfig()
+	torrentClientConfig.DataDir = config.Instance.DownloadDir
+	return torrentClientConfig
 }

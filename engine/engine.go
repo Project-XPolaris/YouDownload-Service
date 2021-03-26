@@ -6,6 +6,7 @@ import (
 	"github.com/cavaliercoder/grab"
 	"github.com/sirupsen/logrus"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -79,6 +80,35 @@ func NewEngine() error {
 			go task.Run(engine)
 		}
 	}
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		for {
+			select {
+			case <-ticker.C:
+				for _, task := range engine.Pool.Tasks {
+					switch task.(type) {
+					case *DownloadTask:
+						save := task.GetSaveTask().(*SaveFileDownloadTask)
+						if save == nil {
+							continue
+						}
+						save.BytesComplete = task.ByteComplete()
+						save.Length = task.Length()
+						save.Save(engine.Database)
+					case *TorrentTask:
+						save := task.GetSaveTask().(*SavedTorrentTask)
+						if save == nil {
+							continue
+						}
+						save.BytesComplete = task.ByteComplete()
+						save.Length = task.Length()
+						save.Save(engine.Database)
+					}
+				}
+			}
+		}
+
+	}()
 	Logger.Info("engine init success")
 	return nil
 }
@@ -99,7 +129,7 @@ func (e *Engine) StopTask(id string) error {
 		if err != nil {
 			return err
 		}
-		err = task.GetSaveTask().UpdateTaskStatus(e.Database, Stop)
+		err = task.GetSaveTask().Save(e.Database)
 		if err != nil {
 			return err
 		}
@@ -152,11 +182,18 @@ func (e *Engine) DeleteTask(id string) error {
 	}).ToSlice(&e.Pool.Tasks)
 	return nil
 }
-func (e *Engine) CreateMagnetTask(link string) error {
+func (e *Engine) CreateMagnetTask(link string) (*TorrentTask, error) {
 	//new task
 	task, err := e.Pool.newTorrentTaskFromMagnetLink(link)
 	if err != nil {
-		return err
+		return task, err
+	}
+	for _, existTask := range e.Pool.Tasks {
+		if existTorrentTask, ok := existTask.(*TorrentTask); ok {
+			if task.Torrent.InfoHash().String() == existTorrentTask.Torrent.InfoHash().String() {
+				return existTorrentTask, nil
+			}
+		}
 	}
 	e.Pool.Lock()
 	e.Pool.Tasks = append(e.Pool.Tasks, task)
@@ -166,12 +203,19 @@ func (e *Engine) CreateMagnetTask(link string) error {
 	go task.RunDownloadProgress(e)
 	go task.RunPiecesChangeSub()
 	go task.RunRateStaticSub()
-	return nil
+	return task, err
 }
-func (e *Engine) CreateTorrentTask(torrentFilePath string) error {
+func (e *Engine) CreateTorrentTask(torrentFilePath string) (*TorrentTask, error) {
 	task, err := e.Pool.newTorrentTaskFromFile(torrentFilePath)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	for _, existTask := range e.Pool.Tasks {
+		if existTorrentTask, ok := existTask.(*TorrentTask); ok {
+			if task.Torrent.InfoHash().String() == existTorrentTask.Torrent.InfoHash().String() {
+				return existTorrentTask, nil
+			}
+		}
 	}
 	e.Pool.Lock()
 	e.Pool.Tasks = append(e.Pool.Tasks, task)
@@ -179,19 +223,27 @@ func (e *Engine) CreateTorrentTask(torrentFilePath string) error {
 	go task.RunDownloadProgress(e)
 	go task.RunPiecesChangeSub()
 	go task.RunRateStaticSub()
-	return nil
+	return task, err
 }
 
-func (e *Engine) CreateDownloadTask(link string) {
+func (e *Engine) CreateDownloadTask(link string) Task {
+	for _, task := range e.Pool.Tasks {
+		if fileDownloadTask, ok := task.(*DownloadTask); ok {
+			if fileDownloadTask.Url == link {
+				return task
+			}
+		}
+	}
 	task := NewDownloadTask(link)
 	go func() {
 		<-task.OnPrepare
 		saveTask := SaveFileDownloadTask{
-			TaskId:   task.TaskId,
-			Url:      task.Url,
-			SavePath: task.SavePath,
-			Status:   task.Status,
-			Name:     filepath.Base(task.Response.Filename),
+			TaskId:     task.TaskId,
+			Url:        task.Url,
+			SavePath:   task.SavePath,
+			Status:     task.Status,
+			Name:       filepath.Base(task.Response.Filename),
+			CreateTime: task.CreateTime,
 		}
 		task.SaveTask = &saveTask
 		err := saveTask.Save(e.Database)
@@ -203,4 +255,5 @@ func (e *Engine) CreateDownloadTask(link string) {
 	e.Pool.Lock()
 	e.Pool.Tasks = append(e.Pool.Tasks, task)
 	e.Pool.Unlock()
+	return task
 }

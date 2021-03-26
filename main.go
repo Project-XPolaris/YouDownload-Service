@@ -5,6 +5,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	srv "github.com/kardianos/service"
 	"github.com/projectxpolaris/youdownload-server/api"
+	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/projectxpolaris/youdownload-server/engine"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -28,7 +29,19 @@ func initService(workDir string) error {
 	return nil
 }
 func Program() {
-	err := engine.NewEngine()
+	err := config.ReadConfig()
+	if err != nil {
+		Logger.Fatal(err)
+	}
+	err = os.MkdirAll(config.Instance.DownloadDir, os.ModePerm)
+	if err != nil {
+		Logger.Fatal(err)
+	}
+	err = os.MkdirAll(config.Instance.TmpDir, os.ModePerm)
+	if err != nil {
+		Logger.Fatal(err)
+	}
+	err = engine.NewEngine()
 	if err != nil {
 		Logger.Fatal(err)
 	}

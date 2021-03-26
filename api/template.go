@@ -4,6 +4,8 @@ import (
 	"github.com/projectxpolaris/youdownload-server/engine"
 )
 
+const TimeFormat = "2006-01-02 03:04:05"
+
 var taskStatusMapping map[engine.TaskStatus]string = map[engine.TaskStatus]string{
 	engine.Estimate:    "Estimate",
 	engine.Downloading: "Downloading",
@@ -12,16 +14,17 @@ var taskStatusMapping map[engine.TaskStatus]string = map[engine.TaskStatus]strin
 }
 
 type BaseTaskTemplate struct {
-	Id       string      `json:"id"`
-	Name     string      `json:"name"`
-	Complete int64       `json:"complete"`
-	Length   int64       `json:"length"`
-	Progress float64     `json:"progress"`
-	Status   string      `json:"status"`
-	Speed    int64       `json:"speed"`
-	ETA      int64       `json:"eta"`
-	Extra    interface{} `json:"extra"`
-	Type     string      `json:"type"`
+	Id         string      `json:"id"`
+	Name       string      `json:"name"`
+	Complete   int64       `json:"complete"`
+	Length     int64       `json:"length"`
+	Progress   float64     `json:"progress"`
+	Status     string      `json:"status"`
+	Speed      int64       `json:"speed"`
+	ETA        int64       `json:"eta"`
+	Extra      interface{} `json:"extra"`
+	Type       string      `json:"type"`
+	CreateTime string      `json:"CreateTime"`
 }
 
 func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]interface{}) error {
@@ -43,11 +46,12 @@ func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]
 		extra.Assign(torrentTask)
 		t.Extra = extra
 	}
+	t.CreateTime = task.GetCreateTime().Format(TimeFormat)
 	switch task.(type) {
 	case *engine.TorrentTask:
 		t.Type = "Torrent"
 	case *engine.DownloadTask:
-		t.Type = "Download"
+		t.Type = "File"
 	}
 	return nil
 }
@@ -75,9 +79,13 @@ func (t *TorrentTaskExtra) Assign(task *engine.TorrentTask) {
 	if task.Torrent == nil {
 		return
 	}
-	if task.Torrent.Files() != nil {
+	if task.Torrent.Info() == nil {
+		return
+	}
+	files := task.Torrent.Files()
+	if files != nil {
 		t.Files = []TorrentFile{}
-		for _, file := range task.Torrent.Files() {
+		for _, file := range files {
 			file := TorrentFile{
 				Name:     file.DisplayPath(),
 				Length:   file.Length(),
