@@ -20,6 +20,7 @@ type DownloadTask struct {
 	Status     TaskStatus
 	SaveTask   *SaveFileDownloadTask
 	OnPrepare  chan struct{}
+	OnComplete chan struct{}
 	CreateTime time.Time
 }
 
@@ -101,6 +102,7 @@ func NewDownloadTask(link string) *DownloadTask {
 		Url:        link,
 		Status:     Downloading,
 		OnPrepare:  make(chan struct{}),
+		OnComplete: make(chan struct{}),
 		CreateTime: time.Now(),
 	}
 }
@@ -127,10 +129,15 @@ func (t *DownloadTask) Run(e *Engine) {
 		select {
 		case <-response.Done:
 			t.Status = Complete
+			t.SaveTask.Status = Complete
+			t.SaveTask.Save(e.Database)
 			Logger.WithField("id", t.TaskId).Info("task complete")
+			return
 		case <-ctx.Done():
-			t.Status = Stop
+			t.Status = Complete
+			t.SaveTask.Save(e.Database)
 			Logger.WithField("id", t.TaskId).Info("task interrupt")
+			return
 		}
 	}()
 }

@@ -54,7 +54,7 @@ func NewEngine() error {
 	}
 	Logger.WithField("count", len(savedTasks)).Info("read saved task from database")
 	for _, savedTask := range savedTasks {
-		task, err := pool.newTorrentTaskFromSaveTask(savedTask)
+		task, err := pool.newTorrentTaskFromSaveTask(savedTask, engine)
 		if err != nil {
 			Logger.WithFields(logrus.Fields{
 				"id":  task.TaskId,
@@ -201,7 +201,7 @@ func (e *Engine) CreateMagnetTask(link string) (*TorrentTask, error) {
 
 	// run task
 	go task.RunDownloadProgress(e)
-	go task.RunPiecesChangeSub()
+	go task.RunPiecesChangeSub(e)
 	go task.RunRateStaticSub()
 	return task, err
 }
@@ -221,7 +221,7 @@ func (e *Engine) CreateTorrentTask(torrentFilePath string) (*TorrentTask, error)
 	e.Pool.Tasks = append(e.Pool.Tasks, task)
 	e.Pool.Unlock()
 	go task.RunDownloadProgress(e)
-	go task.RunPiecesChangeSub()
+	go task.RunPiecesChangeSub(e)
 	go task.RunRateStaticSub()
 	return task, err
 }
@@ -236,20 +236,28 @@ func (e *Engine) CreateDownloadTask(link string) Task {
 	}
 	task := NewDownloadTask(link)
 	go func() {
-		<-task.OnPrepare
-		saveTask := SaveFileDownloadTask{
-			TaskId:     task.TaskId,
-			Url:        task.Url,
-			SavePath:   task.SavePath,
-			Status:     task.Status,
-			Name:       filepath.Base(task.Response.Filename),
-			CreateTime: task.CreateTime,
+		for {
+			select {
+			case <-task.OnPrepare:
+				saveTask := SaveFileDownloadTask{
+					TaskId:     task.TaskId,
+					Url:        task.Url,
+					SavePath:   task.SavePath,
+					Status:     task.Status,
+					Name:       filepath.Base(task.Response.Filename),
+					CreateTime: task.CreateTime,
+				}
+				task.SaveTask = &saveTask
+				err := saveTask.Save(e.Database)
+				if err != nil {
+					Logger.Error(err)
+				}
+			case <-task.OnComplete:
+				task.SaveTask.Save(e.Database)
+				return
+			}
 		}
-		task.SaveTask = &saveTask
-		err := saveTask.Save(e.Database)
-		if err != nil {
-			Logger.Error(err)
-		}
+
 	}()
 	go task.Run(e)
 	e.Pool.Lock()

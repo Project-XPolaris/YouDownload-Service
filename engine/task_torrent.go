@@ -13,6 +13,7 @@ type TorrentTask struct {
 	Speed      int64
 	SavedTask  *SavedTorrentTask
 	CreateTime time.Time
+	OnComplete chan struct{}
 }
 
 func (t *TorrentTask) GetCreateTime() time.Time {
@@ -81,7 +82,7 @@ func (t *TorrentTask) ByteComplete() int64 {
 	return t.Torrent.BytesCompleted()
 }
 
-func (t *TorrentTask) RunPiecesChangeSub() {
+func (t *TorrentTask) RunPiecesChangeSub(engine *Engine) {
 	sub := t.Torrent.SubscribePieceStateChanges()
 	for {
 		<-sub.Values
@@ -90,6 +91,9 @@ func (t *TorrentTask) RunPiecesChangeSub() {
 		}
 		if t.Torrent.BytesCompleted() == t.Torrent.Length() {
 			t.Status = Complete
+			t.OnComplete <- struct{}{}
+			t.SavedTask.Status = Complete
+			t.SavedTask.Save(engine.Database)
 			return
 		}
 	}
@@ -144,6 +148,7 @@ func (p *TaskPool) newTorrentTaskFromMagnetLink(link string) (*TorrentTask, erro
 		TaskId:     id,
 		Status:     Estimate,
 		CreateTime: time.Now(),
+		OnComplete: make(chan struct{}),
 	}
 	t, err := p.Client.AddMagnet(link)
 	task.Torrent = t
@@ -154,7 +159,7 @@ func (p *TaskPool) newTorrentTaskFromMagnetLink(link string) (*TorrentTask, erro
 	return task, nil
 }
 
-func (p *TaskPool) newTorrentTaskFromSaveTask(savedTask *SavedTorrentTask) (*TorrentTask, error) {
+func (p *TaskPool) newTorrentTaskFromSaveTask(savedTask *SavedTorrentTask, engine *Engine) (*TorrentTask, error) {
 	t, err := p.Client.AddTorrent(savedTask.MetaInfo)
 	if err != nil {
 		return nil, err
@@ -165,9 +170,10 @@ func (p *TaskPool) newTorrentTaskFromSaveTask(savedTask *SavedTorrentTask) (*Tor
 		Status:     savedTask.Status,
 		SavedTask:  savedTask,
 		CreateTime: time.Now(),
+		OnComplete: make(chan struct{}),
 	}
 	go task.RunDownloadProgress(p.Engine)
-	go task.RunPiecesChangeSub()
+	go task.RunPiecesChangeSub(engine)
 	go task.RunRateStaticSub()
 	p.Lock()
 	p.Tasks = append(p.Tasks, task)
@@ -181,6 +187,7 @@ func (p *TaskPool) newTorrentTaskFromFile(filePath string) (*TorrentTask, error)
 		TaskId:     id,
 		Status:     Estimate,
 		CreateTime: time.Now(),
+		OnComplete: make(chan struct{}),
 	}
 	t, err := p.Client.AddTorrentFromFile(filePath)
 	task.Torrent = t
