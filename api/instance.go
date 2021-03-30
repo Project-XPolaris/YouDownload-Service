@@ -24,5 +24,6 @@ func RunApiApplication() {
 	e.Router.POST("/task/start", startTaskHandler)
 	e.Router.POST("/task/stop", stopTaskHandler)
 	e.Router.POST("/task/delete", deleteTask)
+	e.Router.POST("/util/readDir", readDirectoryHandler)
 	e.RunAndListen(config.Instance.Addr)
 }

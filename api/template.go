@@ -41,11 +41,11 @@ func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]
 	if t.Speed != 0 {
 		t.ETA = task.Length() / t.Speed
 	}
-	if torrentTask, ok := task.(*engine.TorrentTask); ok {
-		extra := TorrentTaskExtra{}
-		extra.Assign(torrentTask)
-		t.Extra = extra
-	}
+	//if torrentTask, ok := task.(*engine.TorrentTask); ok {
+	//	extra := TorrentTaskExtra{}
+	//	extra.Assign(torrentTask)
+	//	t.Extra = extra
+	//}
 	t.CreateTime = task.GetCreateTime().Format(TimeFormat)
 	switch task.(type) {
 	case *engine.TorrentTask:
