@@ -1,4 +1,7 @@
 addr: :5700
 paths:
-  tmp: ./data/tmp
-  download: ./data/download
+  download: ./data
+auth:
+  enable: false
+  url: "http://localhost:8999"
+  rel: "http://localhost:8999/user/auth"

@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/allentom/haruka"
-	"github.com/projectxpolaris/youdownload-server/engine"
+	"github.com/projectxpolaris/youdownload-server/hub"
 	"net/http"
 )
 
@@ -16,7 +16,11 @@ var newFileDownloadTask haruka.RequestHandler = func(context *haruka.Context) {
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 	}
-	task := engine.DefaultEngine.CreateDownloadTask(requestBody.Link)
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	task := service.Engine.CreateDownloadTask(requestBody.Link)
 	template := BaseTaskTemplate{}
 	err = template.Serializer(task, nil)
 	if err != nil {

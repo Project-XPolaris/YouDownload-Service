@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/cavaliercoder/grab"
-	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/rs/xid"
 	"path/filepath"
 	"time"
@@ -95,10 +94,10 @@ func (t *DownloadTask) SavedTaskId() int {
 	return t.SaveTask.ID
 }
 
-func NewDownloadTask(link string) *DownloadTask {
+func NewDownloadTask(link string, savePath string) *DownloadTask {
 	return &DownloadTask{
 		TaskId:     xid.New().String(),
-		SavePath:   config.Instance.DownloadDir,
+		SavePath:   savePath,
 		Url:        link,
 		Status:     Downloading,
 		OnPrepare:  make(chan struct{}),

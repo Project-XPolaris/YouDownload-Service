@@ -3,12 +3,16 @@ package api
 import (
 	"github.com/allentom/haruka"
 	"github.com/allentom/haruka/serializer"
-	"github.com/projectxpolaris/youdownload-server/engine"
+	"github.com/projectxpolaris/youdownload-server/hub"
 	"net/http"
 )
 
 var taskInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
-	data := serializer.SerializeMultipleTemplate(engine.DefaultEngine.Pool.Tasks, &BaseTaskTemplate{}, map[string]interface{}{})
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	data := serializer.SerializeMultipleTemplate(service.Engine.Pool.Tasks, &BaseTaskTemplate{}, map[string]interface{}{})
 	context.JSON(haruka.JSON{
 		"list": data,
 	})
@@ -16,7 +20,11 @@ var taskInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 
 var stopTaskHandler haruka.RequestHandler = func(context *haruka.Context) {
 	id := context.GetQueryString("id")
-	err := engine.DefaultEngine.StopTask(id)
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	err = service.Engine.StopTask(id)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -27,7 +35,11 @@ var stopTaskHandler haruka.RequestHandler = func(context *haruka.Context) {
 }
 var startTaskHandler haruka.RequestHandler = func(context *haruka.Context) {
 	id := context.GetQueryString("id")
-	err := engine.DefaultEngine.StartTask(id)
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	err = service.Engine.StartTask(id)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -39,7 +51,11 @@ var startTaskHandler haruka.RequestHandler = func(context *haruka.Context) {
 
 var deleteTask haruka.RequestHandler = func(context *haruka.Context) {
 	id := context.GetQueryString("id")
-	err := engine.DefaultEngine.DeleteTask(id)
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	err = service.Engine.DeleteTask(id)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return

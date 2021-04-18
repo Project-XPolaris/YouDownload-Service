@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/asdine/storm/v3"
+	"path"
 	"time"
 )
 
@@ -27,8 +28,8 @@ func (d *Database) ReadSavedFileDownloadTask() ([]*SaveFileDownloadTask, error) 
 	}
 	return savedTasks, nil
 }
-func OpenDatabase() (*Database, error) {
-	db, err := storm.Open("./data.db")
+func OpenDatabase(databasePath string) (*Database, error) {
+	db, err := storm.Open(path.Join(databasePath, "./data.db"))
 	if err != nil {
 		return nil, err
 	}

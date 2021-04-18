@@ -39,3 +39,11 @@ var readDirectoryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"files": items,
 	})
 }
+
+var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
+	context.JSON(haruka.JSON{
+		"name":       "YouDownload serivce",
+		"authEnable": config.Instance.AuthEnable,
+		"authUrl":    config.Instance.AuthRel,
+	})
+}

@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	DefaultEngine *Engine
-	Logger        = logrus.WithFields(logrus.Fields{
+	Logger = logrus.WithFields(logrus.Fields{
 		"scope": "Engine",
 	})
 )
@@ -20,37 +19,39 @@ type Engine struct {
 	TorrentClient      *torrent.Client
 	FileDownloadClient *grab.Client
 	Pool               *TaskPool
-	Config             *torrent.ClientConfig
+	TorrentConfig      *torrent.ClientConfig
 	Database           *Database
+	Config             *EngineConfig
 }
 
-func NewEngine() error {
+func NewEngine(engineConfig *EngineConfig) (*Engine, error) {
 	config := NewConfig()
+	config.DataDir = engineConfig.DownloadDir
+	config.ListenPort = engineConfig.TorrentPort
 	client, err := NewClient(config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	pool := TaskPool{
 		Client: client,
 		Tasks:  []Task{},
 	}
-	database, err := OpenDatabase()
+	database, err := OpenDatabase(engineConfig.DatabaseDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	engine := &Engine{
 		TorrentClient:      client,
 		FileDownloadClient: grab.NewClient(),
 		Pool:               &pool,
-		Config:             config,
+		TorrentConfig:      config,
 		Database:           database,
 	}
 	pool.Engine = engine
-	DefaultEngine = engine
 	//restore task
 	savedTasks, err := database.ReadSavedTask()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	Logger.WithField("count", len(savedTasks)).Info("read saved task from database")
 	for _, savedTask := range savedTasks {
@@ -69,7 +70,7 @@ func NewEngine() error {
 	}
 	saveFileDownloadTasks, err := database.ReadSavedFileDownloadTask()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, saveFileDownloadTask := range saveFileDownloadTasks {
 		task := engine.Pool.newFileTaskFromSaveTask(saveFileDownloadTask)
@@ -110,7 +111,7 @@ func NewEngine() error {
 
 	}()
 	Logger.Info("engine init success")
-	return nil
+	return engine, nil
 }
 
 func (e *Engine) Stop() error {
@@ -234,7 +235,7 @@ func (e *Engine) CreateDownloadTask(link string) Task {
 			}
 		}
 	}
-	task := NewDownloadTask(link)
+	task := NewDownloadTask(link, e.Config.DownloadDir)
 	go func() {
 		for {
 			select {

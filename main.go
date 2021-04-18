@@ -6,7 +6,7 @@ import (
 	srv "github.com/kardianos/service"
 	"github.com/projectxpolaris/youdownload-server/api"
 	"github.com/projectxpolaris/youdownload-server/config"
-	"github.com/projectxpolaris/youdownload-server/engine"
+	"github.com/projectxpolaris/youdownload-server/hub"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -37,24 +37,13 @@ func Program() {
 	if err != nil {
 		Logger.Fatal(err)
 	}
-	err = os.MkdirAll(config.Instance.TmpDir, os.ModePerm)
-	if err != nil {
-		Logger.Fatal(err)
-	}
-	err = engine.NewEngine()
-	if err != nil {
-		Logger.Fatal(err)
-	}
+	hub.InitHub()
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go api.RunApiApplication()
 	Logger.Info("application running")
 	<-done
 	Logger.Info("graceful shutdown")
-	err = engine.DefaultEngine.Stop()
-	if err != nil {
-		Logger.Error(err)
-	}
 }
 
 type program struct{}

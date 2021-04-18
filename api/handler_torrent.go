@@ -2,8 +2,7 @@ package api
 
 import (
 	"github.com/allentom/haruka"
-	"github.com/projectxpolaris/youdownload-server/config"
-	"github.com/projectxpolaris/youdownload-server/engine"
+	"github.com/projectxpolaris/youdownload-server/hub"
 	"io"
 	"net/http"
 	"os"
@@ -20,7 +19,11 @@ var createMargetTask haruka.RequestHandler = func(context *haruka.Context) {
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 	}
-	task, err := engine.DefaultEngine.CreateMagnetTask(requestBody.Link)
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	task, err := service.Engine.CreateMagnetTask(requestBody.Link)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 	}
@@ -50,8 +53,11 @@ var createTorrentTask haruka.RequestHandler = func(context *haruka.Context) {
 	}
 
 	defer file.Close()
-
-	filePath := filepath.Join(config.Instance.TmpDir, handler.Filename)
+	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+	}
+	filePath := filepath.Join(service.Engine.Config.TempDir, handler.Filename)
 	filePathAbs, _ := filepath.Abs(filePath)
 
 	f, err := os.OpenFile(filePathAbs, os.O_WRONLY|os.O_CREATE, 0666)
@@ -66,7 +72,7 @@ var createTorrentTask haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
 	}
-	torrentTask, err := engine.DefaultEngine.CreateTorrentTask(filePathAbs)
+	torrentTask, err := service.Engine.CreateTorrentTask(filePathAbs)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
