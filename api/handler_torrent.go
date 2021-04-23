@@ -59,7 +59,6 @@ var createTorrentTask haruka.RequestHandler = func(context *haruka.Context) {
 	}
 	filePath := filepath.Join(service.Engine.Config.TempDir, handler.Filename)
 	filePathAbs, _ := filepath.Abs(filePath)
-
 	f, err := os.OpenFile(filePathAbs, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)

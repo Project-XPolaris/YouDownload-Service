@@ -41,6 +41,10 @@ func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
 		return nil, err
 	}
 	tempPath := path.Join(serviceDataPath, "tmp")
+	err = os.MkdirAll(tempPath, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
 	h.Lock()
 	torrentPort := h.TorrentPort + 1
 	engineConfig := &engine.EngineConfig{

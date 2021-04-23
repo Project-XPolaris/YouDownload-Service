@@ -46,6 +46,7 @@ func NewEngine(engineConfig *EngineConfig) (*Engine, error) {
 		Pool:               &pool,
 		TorrentConfig:      config,
 		Database:           database,
+		Config:             engineConfig,
 	}
 	pool.Engine = engine
 	//restore task
