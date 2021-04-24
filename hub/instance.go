@@ -47,6 +47,7 @@ func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
 	}
 	h.Lock()
 	torrentPort := h.TorrentPort + 1
+	h.TorrentPort += 1
 	engineConfig := &engine.EngineConfig{
 		DatabaseDir: serviceDataPath,
 		DownloadDir: dataPath,

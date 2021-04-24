@@ -133,7 +133,7 @@ func (t *DownloadTask) Run(e *Engine) {
 			Logger.WithField("id", t.TaskId).Info("task complete")
 			return
 		case <-ctx.Done():
-			t.Status = Complete
+			t.Status = Stop
 			t.SaveTask.Save(e.Database)
 			Logger.WithField("id", t.TaskId).Info("task interrupt")
 			return

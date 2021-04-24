@@ -8,6 +8,8 @@ import (
 	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/projectxpolaris/youdownload-server/hub"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -25,6 +27,7 @@ func initService(workDir string) error {
 		Name:             "YouDownloadService",
 		DisplayName:      "YouDownload Core Service",
 		WorkingDirectory: workDir,
+		Arguments:        []string{"run"},
 	}
 	return nil
 }
@@ -91,6 +94,105 @@ var opts struct {
 	Uninstall bool `short:"u" long:"uninstall" description:"uninstall service"`
 }
 
+func StartService() {
+	prg := &program{}
+	s, err := srv.New(prg, svcConfig)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	err = s.Start()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+}
+func StopService() {
+	prg := &program{}
+	s, err := srv.New(prg, svcConfig)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	err = s.Stop()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+}
+func RestartService() {
+	prg := &program{}
+	s, err := srv.New(prg, svcConfig)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	err = s.Restart()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+}
+func RunApp() {
+	app := &cli.App{
+		Flags: []cli.Flag{},
+		Commands: []*cli.Command{
+			{
+				Name:  "service",
+				Usage: "service manager",
+				Subcommands: []*cli.Command{
+					{
+						Name:  "install",
+						Usage: "install service",
+						Action: func(context *cli.Context) error {
+							InstallAsService()
+							return nil
+						},
+					},
+					{
+						Name:  "uninstall",
+						Usage: "uninstall service",
+						Action: func(context *cli.Context) error {
+							UnInstall()
+							return nil
+						},
+					},
+					{
+						Name:  "start",
+						Usage: "start service",
+						Action: func(context *cli.Context) error {
+							StartService()
+							return nil
+						},
+					},
+					{
+						Name:  "stop",
+						Usage: "stop service",
+						Action: func(context *cli.Context) error {
+							StopService()
+							return nil
+						},
+					},
+					{
+						Name:  "restart",
+						Usage: "restart service",
+						Action: func(context *cli.Context) error {
+							RestartService()
+							return nil
+						},
+					},
+				},
+				Description: "YouDownload service controller",
+			},
+			{
+				Name:  "run",
+				Usage: "run app",
+				Action: func(context *cli.Context) error {
+					Program()
+					return nil
+				},
+			},
+		},
+	}
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 func main() {
 	// flags
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -108,13 +210,5 @@ func main() {
 		logrus.Fatal(err)
 	}
 	logrus.Info(fmt.Sprintf("work_path =  %s", workPath))
-	if opts.Install {
-		InstallAsService()
-		return
-	}
-	if opts.Uninstall {
-		UnInstall()
-		return
-	}
-	Program()
+	RunApp()
 }

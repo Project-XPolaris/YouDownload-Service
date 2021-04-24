@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youdownload-server/config"
+	"github.com/projectxpolaris/youdownload-server/hub"
 	"github.com/projectxpolaris/youdownload-server/service"
 	"net/http"
 	"path/filepath"
@@ -39,7 +40,17 @@ var readDirectoryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"files": items,
 	})
 }
-
+var initEngineHandler haruka.RequestHandler = func(context *haruka.Context) {
+	uid := context.GetQueryString("uid")
+	_, err := hub.DefaultHub.GetService(uid)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
+	})
+}
 var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 	context.JSON(haruka.JSON{
 		"name":       "YouDownload serivce",
