@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"github.com/projectxpolaris/youdownload-server/config"
+	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/projectxpolaris/youdownload-server/engine"
 	"os"
 	"path"
@@ -30,17 +30,17 @@ type DownloadHub struct {
 }
 
 func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
-	serviceDataPath := path.Join(config.Instance.DownloadDir, uid)
-	err := os.MkdirAll(serviceDataPath, os.ModePerm)
+	var user database.User
+	err := database.Instance.Where("uid = ?", uid).Find(&user).Error
 	if err != nil {
 		return nil, err
 	}
-	dataPath := path.Join(serviceDataPath, "download")
+	dataPath := path.Join(user.DataPath, "download")
 	err = os.MkdirAll(dataPath, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
-	tempPath := path.Join(serviceDataPath, "tmp")
+	tempPath := path.Join(user.DataPath, "tmp")
 	err = os.MkdirAll(tempPath, os.ModePerm)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
 	torrentPort := h.TorrentPort + 1
 	h.TorrentPort += 1
 	engineConfig := &engine.EngineConfig{
-		DatabaseDir: serviceDataPath,
+		DatabaseDir: user.DataPath,
 		DownloadDir: dataPath,
 		TempDir:     tempPath,
 		TorrentPort: torrentPort,

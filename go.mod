@@ -11,12 +11,14 @@ require (
 	github.com/asdine/storm/v3 v3.2.1
 	github.com/cavaliercoder/grab v2.0.0+incompatible
 	github.com/elliotchance/orderedmap v1.4.0 // indirect
+	github.com/go-resty/resty/v2 v2.6.0
 	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/kardianos/service v1.2.0
 	github.com/lucas-clemente/quic-go v0.20.0 // indirect
+	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/pion/dtls/v2 v2.0.8 // indirect
 	github.com/pion/mdns v0.0.5 // indirect
 	github.com/pion/transport v0.12.3 // indirect
@@ -26,8 +28,9 @@ require (
 	github.com/spf13/viper v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20210317152858-513c2a44f670 // indirect
-	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210414055047-fe65e336abe0 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
+	gorm.io/driver/sqlite v1.1.4
+	gorm.io/gorm v1.21.11
 )

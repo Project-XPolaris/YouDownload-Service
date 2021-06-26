@@ -6,7 +6,9 @@ import (
 	srv "github.com/kardianos/service"
 	"github.com/projectxpolaris/youdownload-server/api"
 	"github.com/projectxpolaris/youdownload-server/config"
+	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/projectxpolaris/youdownload-server/hub"
+	"github.com/projectxpolaris/youdownload-server/youplus"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"log"
@@ -33,6 +35,25 @@ func initService(workDir string) error {
 }
 func Program() {
 	err := config.ReadConfig()
+	if err != nil {
+		Logger.Fatal(err)
+	}
+	// init youplus client
+	if config.Instance.AuthEnable {
+		Logger.Info("init youplus [check]")
+		youplus.DefaultAuthClient.Init(config.Instance.AuthUrl)
+		info, err := youplus.DefaultAuthClient.FetchInfo()
+		if err != nil {
+			Logger.Fatal(err)
+		}
+		if !info.Success {
+			Logger.Fatal("init youplus [failed]")
+		}
+		Logger.Info("init youplus [pass]")
+	}
+	// init database
+	Logger.Info("connect to database")
+	err = database.Connect()
 	if err != nil {
 		Logger.Fatal(err)
 	}

@@ -4,12 +4,12 @@ import (
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/projectxpolaris/youdownload-server/hub"
-	auth "github.com/projectxpolaris/youdownload-server/youplus"
+	"github.com/projectxpolaris/youdownload-server/youplus"
 	"github.com/sirupsen/logrus"
 	"strings"
 )
 
-var noAuthPath = []string{"/info"}
+var noAuthPath = []string{"/info", "/user/auth"}
 
 type AuthMiddleware struct {
 }
@@ -31,7 +31,7 @@ func (m AuthMiddleware) OnRequest(ctx *haruka.Context) {
 	}
 	if len(rawString) > 0 {
 		rawString = strings.Replace(rawString, "Bearer ", "", 1)
-		response, err := auth.DefaultAuthClient.CheckAuth(rawString)
+		response, err := youplus.DefaultAuthClient.CheckAuth(rawString)
 		if err == nil {
 			logrus.WithFields(logrus.Fields{
 				"uid":  response.Uid,

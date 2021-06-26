@@ -38,6 +38,7 @@ var readDirectoryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"path":  abs,
 		"sep":   string(filepath.Separator),
 		"files": items,
+		"back":  filepath.Dir(requestBody.Path),
 	})
 }
 var initEngineHandler haruka.RequestHandler = func(context *haruka.Context) {

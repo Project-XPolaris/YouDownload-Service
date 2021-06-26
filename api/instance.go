@@ -27,6 +27,8 @@ func RunApiApplication() {
 	e.Router.POST("/util/readDir", readDirectoryHandler)
 	e.Router.GET("/info", serviceInfoHandler)
 	e.Router.POST("/hub/init", initEngineHandler)
+	e.Router.POST("/user/auth", LoginHandler)
+	e.Router.POST("/user/init", InitUser)
 	e.UseMiddleware(&AuthMiddleware{})
 	e.RunAndListen(config.Instance.Addr)
 }
