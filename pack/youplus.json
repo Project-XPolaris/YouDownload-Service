@@ -1,0 +1,7 @@
+{
+  "app_name": "YouDownload Service",
+  "auto_start": false,
+  "type":"Service",
+  "service_name":"YouDownloadService.service",
+  "icon":"icon.png"
+}

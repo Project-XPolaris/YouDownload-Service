@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/projectxpolaris/youdownload-server/engine"
 	"os"
@@ -34,6 +35,9 @@ func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
 	err := database.Instance.Where("uid = ?", uid).Find(&user).Error
 	if err != nil {
 		return nil, err
+	}
+	if len(user.DataPath) == 0 {
+		return nil, errors.New("user not init")
 	}
 	dataPath := path.Join(user.DataPath, "download")
 	err = os.MkdirAll(dataPath, os.ModePerm)

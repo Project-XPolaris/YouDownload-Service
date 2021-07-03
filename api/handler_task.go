@@ -11,6 +11,7 @@ var taskInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	data := serializer.SerializeMultipleTemplate(service.Engine.Pool.Tasks, &BaseTaskTemplate{}, map[string]interface{}{})
 	context.JSON(haruka.JSON{
@@ -23,6 +24,7 @@ var stopTaskHandler haruka.RequestHandler = func(context *haruka.Context) {
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	err = service.Engine.StopTask(id)
 	if err != nil {
@@ -38,6 +40,7 @@ var startTaskHandler haruka.RequestHandler = func(context *haruka.Context) {
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	err = service.Engine.StartTask(id)
 	if err != nil {
@@ -54,6 +57,7 @@ var deleteTask haruka.RequestHandler = func(context *haruka.Context) {
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	err = service.Engine.DeleteTask(id)
 	if err != nil {

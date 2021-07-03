@@ -2,6 +2,9 @@ package api
 
 import (
 	"github.com/projectxpolaris/youdownload-server/engine"
+	"github.com/projectxpolaris/youdownload-server/service"
+	"github.com/projectxpolaris/youdownload-server/youplus"
+	"path/filepath"
 )
 
 const TimeFormat = "2006-01-02 03:04:05"
@@ -41,11 +44,11 @@ func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]
 	if t.Speed != 0 {
 		t.ETA = task.Length() / t.Speed
 	}
-	//if torrentTask, ok := task.(*engine.TorrentTask); ok {
-	//	extra := TorrentTaskExtra{}
-	//	extra.Assign(torrentTask)
-	//	t.Extra = extra
-	//}
+	if torrentTask, ok := task.(*engine.TorrentTask); ok {
+		extra := TorrentTaskExtra{}
+		extra.Assign(torrentTask)
+		t.Extra = extra
+	}
 	t.CreateTime = task.GetCreateTime().Format(TimeFormat)
 	switch task.(type) {
 	case *engine.TorrentTask:
@@ -95,14 +98,31 @@ func (t *TorrentTaskExtra) Assign(task *engine.TorrentTask) {
 			t.Files = append(t.Files, file)
 		}
 	}
-	t.Peer = []TorrentPeer{}
-	for _, conn := range task.Torrent.PeerConns() {
-		peer := TorrentPeer{
-			ClientName: conn.PeerClientName,
-			Network:    conn.Network,
-			Remote:     conn.RemoteAddr.String(),
-			Port:       conn.PeerListenPort,
-		}
-		t.Peer = append(t.Peer, peer)
-	}
+	//t.Peer = []TorrentPeer{}
+	//for _, conn := range task.Torrent.PeerConns() {
+	//	peer := TorrentPeer{
+	//		ClientName: conn.PeerClientName,
+	//		Network:    conn.Network,
+	//		Remote:     conn.RemoteAddr.String(),
+	//		Port:       conn.PeerListenPort,
+	//	}
+	//	t.Peer = append(t.Peer, peer)
+	//}
+}
+
+type BaseFileItemTemplate struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+func (t *BaseFileItemTemplate) Assign(info service.FileItem, rootPath string) {
+	t.Type = info.Type
+	t.Name = info.Name
+	t.Path = info.Path
+}
+func (t *BaseFileItemTemplate) AssignWithYouPlusItem(item youplus.ReadDirItem) {
+	t.Type = item.Type
+	t.Path = item.Path
+	t.Name = filepath.Base(item.Path)
 }

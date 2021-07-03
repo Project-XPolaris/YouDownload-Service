@@ -5,7 +5,6 @@ import (
 	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/projectxpolaris/youdownload-server/hub"
 	"github.com/projectxpolaris/youdownload-server/youplus"
-	"github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -30,13 +29,10 @@ func (m AuthMiddleware) OnRequest(ctx *haruka.Context) {
 		rawString = ctx.GetQueryString("token")
 	}
 	if len(rawString) > 0 {
+		ctx.Param["token"] = rawString
 		rawString = strings.Replace(rawString, "Bearer ", "", 1)
-		response, err := youplus.DefaultAuthClient.CheckAuth(rawString)
+		response, err := youplus.DefaultClient.CheckAuth(rawString)
 		if err == nil {
-			logrus.WithFields(logrus.Fields{
-				"uid":  response.Uid,
-				"user": response.Username,
-			}).Info("user auth")
 			ctx.Param["uid"] = response.Uid
 			ctx.Param["username"] = response.Username
 		} else {

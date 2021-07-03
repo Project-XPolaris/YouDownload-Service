@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/anacrolix/torrent"
 	"github.com/rs/xid"
+	"path/filepath"
 	"time"
 )
 
@@ -14,6 +15,14 @@ type TorrentTask struct {
 	SavedTask  *SavedTorrentTask
 	CreateTime time.Time
 	OnComplete chan struct{}
+}
+type TorrentFile struct {
+	Path   string `json:"path"`
+	Name   string `json:"name"`
+	Length int64  `json:"length"`
+}
+type TorrentInfo struct {
+	Files []*TorrentFile `json:"files"`
 }
 
 func (t *TorrentTask) GetCreateTime() time.Time {
@@ -81,7 +90,17 @@ func (t *TorrentTask) Name() string {
 func (t *TorrentTask) ByteComplete() int64 {
 	return t.Torrent.BytesCompleted()
 }
-
+func (t *TorrentTask) GetInfo() interface{} {
+	info := t.Torrent.Info()
+	if info == nil {
+		return map[string]interface{}{}
+	}
+	torrentInfo := TorrentInfo{Files: []*TorrentFile{}}
+	for _, file := range info.Files {
+		torrentInfo.Files = append(torrentInfo.Files, &TorrentFile{Name: filepath.Base(file.Path[0]), Path: file.Path[0], Length: file.Length})
+	}
+	return torrentInfo
+}
 func (t *TorrentTask) RunPiecesChangeSub(engine *Engine) {
 	sub := t.Torrent.SubscribePieceStateChanges()
 	for {

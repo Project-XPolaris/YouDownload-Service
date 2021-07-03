@@ -8,8 +8,8 @@ type Config struct {
 	Addr        string
 	DownloadDir string
 	AuthEnable  bool
-	AuthUrl     string
-	AuthRel     string
+	PathEnable  bool
+	YouPlusUrl  string
 }
 
 func ReadConfig() error {
@@ -24,16 +24,16 @@ func ReadConfig() error {
 	}
 	configer.SetDefault("addr", ":5700")
 	configer.SetDefault("paths.download", "./dowmload")
-	configer.SetDefault("auth.enable", false)
-	configer.SetDefault("auth.url", "http://localhost:8999")
-	configer.SetDefault("auth.rel", "http://localhost:8999/user/auth")
+	configer.SetDefault("youplus.auth", false)
+	configer.SetDefault("youplus.pathEnable", false)
+	configer.SetDefault("youplus.url", "http://localhost:8999")
 
 	Instance = Config{
 		Addr:        configer.GetString("addr"),
 		DownloadDir: configer.GetString("paths.download"),
-		AuthEnable:  configer.GetBool("auth.enable"),
-		AuthUrl:     configer.GetString("auth.url"),
-		AuthRel:     configer.GetString("auth.rel"),
+		AuthEnable:  configer.GetBool("youplus.auth"),
+		PathEnable:  configer.GetBool("youplus.pathEnable"),
+		YouPlusUrl:  configer.GetString("youplus.url"),
 	}
 	return nil
 }

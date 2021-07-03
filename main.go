@@ -39,10 +39,10 @@ func Program() {
 		Logger.Fatal(err)
 	}
 	// init youplus client
-	if config.Instance.AuthEnable {
+	if config.Instance.AuthEnable || config.Instance.PathEnable {
 		Logger.Info("init youplus [check]")
-		youplus.DefaultAuthClient.Init(config.Instance.AuthUrl)
-		info, err := youplus.DefaultAuthClient.FetchInfo()
+		youplus.DefaultClient.Init(config.Instance.YouPlusUrl)
+		info, err := youplus.DefaultClient.FetchInfo()
 		if err != nil {
 			Logger.Fatal(err)
 		}

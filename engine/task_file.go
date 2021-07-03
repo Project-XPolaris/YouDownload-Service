@@ -93,7 +93,9 @@ func (t *DownloadTask) TaskStatus() TaskStatus {
 func (t *DownloadTask) SavedTaskId() int {
 	return t.SaveTask.ID
 }
-
+func (t *DownloadTask) GetInfo() interface{} {
+	return nil
+}
 func NewDownloadTask(link string, savePath string) *DownloadTask {
 	return &DownloadTask{
 		TaskId:     xid.New().String(),

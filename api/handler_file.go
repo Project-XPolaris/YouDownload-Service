@@ -15,16 +15,19 @@ var newFileDownloadTask haruka.RequestHandler = func(context *haruka.Context) {
 	err := context.ParseJson(&requestBody)
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
+		return
 	}
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	task := service.Engine.CreateDownloadTask(requestBody.Link)
 	template := BaseTaskTemplate{}
 	err = template.Serializer(task, nil)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	context.JSON(haruka.JSON{
 		"success": true,

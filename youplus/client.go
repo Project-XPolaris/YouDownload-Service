@@ -2,23 +2,23 @@ package youplus
 
 import (
 	"fmt"
-	"github.com/allentom/haruka"
 	"github.com/go-resty/resty/v2"
 )
 
-var DefaultAuthClient = AuthClient{
+var DefaultClient = Client{
 	client: resty.New(),
 }
 
-type AuthClient struct {
+type Client struct {
 	client  *resty.Client
 	baseUrl string
 }
 
-func (c *AuthClient) Init(baseUrl string) {
+// Init client
+func (c *Client) Init(baseUrl string) {
 	c.baseUrl = baseUrl
 }
-func (c *AuthClient) GetUrl(path string) string {
+func (c *Client) GetUrl(path string) string {
 	return fmt.Sprintf("%s%s", c.baseUrl, path)
 }
 
@@ -28,7 +28,8 @@ type AuthResponse struct {
 	Uid      string `json:"uid,omitempty"`
 }
 
-func (c *AuthClient) CheckAuth(token string) (*AuthResponse, error) {
+// CheckAuth get user info by token
+func (c *Client) CheckAuth(token string) (*AuthResponse, error) {
 	var responseBody AuthResponse
 	_, err := c.client.R().
 		SetResult(&responseBody).
@@ -46,9 +47,10 @@ type UserAuthResponse struct {
 	Uid     string `json:"uid"`
 }
 
-func (c *AuthClient) FetchUserAuth(username string, password string) (*UserAuthResponse, error) {
+// FetchUserAuth fetch token with username and password
+func (c *Client) FetchUserAuth(username string, password string) (*UserAuthResponse, error) {
 	var responseBody UserAuthResponse
-	_, err := c.client.R().SetBody(haruka.JSON{
+	_, err := c.client.R().SetBody(map[string]interface{}{
 		"username": username,
 		"password": password,
 	}).SetResult(&responseBody).Post(c.GetUrl("/user/auth"))
@@ -59,8 +61,54 @@ type InfoResponse struct {
 	Success bool `json:"success"`
 }
 
-func (c *AuthClient) FetchInfo() (*InfoResponse, error) {
+// FetchInfo get service info
+func (c *Client) FetchInfo() (*InfoResponse, error) {
 	var responseBody InfoResponse
 	_, err := c.client.R().SetResult(&responseBody).Get(c.GetUrl("/info"))
 	return &responseBody, err
+}
+
+type GetRealPathResponseBody struct {
+	Path string `json:"path"`
+}
+
+// GetRealPath get realpath by youplus path
+func (c *Client) GetRealPath(target string, token string) (string, error) {
+	var responseBody GetRealPathResponseBody
+	_, err := c.client.R().
+		SetQueryParam("target", target).
+		SetHeader("Authorization", token).
+		SetResult(&responseBody).
+		Get(c.baseUrl + "/path/realpath")
+	return responseBody.Path, err
+}
+
+type GetInfoResponseBody struct {
+	Name    string `json:"name"`
+	Success bool   `json:"success"`
+}
+
+func (c *Client) GetInfo() (*GetInfoResponseBody, error) {
+	var responseBody GetInfoResponseBody
+	_, err := c.client.R().
+		SetResult(&responseBody).
+		Get(c.baseUrl + "/info")
+	return &responseBody, err
+}
+
+type ReadDirItem struct {
+	RealPath string `json:"realPath"`
+	Path     string `json:"path"`
+	Type     string `json:"type"`
+}
+
+// ReadDir readdir with youplus path
+func (c *Client) ReadDir(target string, token string) ([]ReadDirItem, error) {
+	var responseBody []ReadDirItem
+	_, err := c.client.R().
+		SetQueryParam("target", target).
+		SetHeader("Authorization", token).
+		SetResult(&responseBody).
+		Get(c.baseUrl + "/path/readdir")
+	return responseBody, err
 }

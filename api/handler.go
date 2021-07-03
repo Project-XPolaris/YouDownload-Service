@@ -5,7 +5,9 @@ import (
 	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/projectxpolaris/youdownload-server/hub"
 	"github.com/projectxpolaris/youdownload-server/service"
+	"github.com/projectxpolaris/youdownload-server/youplus"
 	"net/http"
+	"os"
 	"path/filepath"
 )
 
@@ -20,26 +22,45 @@ var readDirectoryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	if len(requestBody.Path) == 0 {
-		homePath, err := filepath.Abs(config.Instance.DownloadDir)
+	if config.Instance.PathEnable {
+		token := context.Param["token"].(string)
+		items, err := youplus.DefaultClient.ReadDir(requestBody.Path, token)
 		if err != nil {
-			AbortError(context, err, http.StatusBadRequest)
+			AbortError(context, err, http.StatusInternalServerError)
 			return
 		}
-		requestBody.Path = homePath
-	}
-	items, err := service.ReadDirectory(requestBody.Path)
-	if err != nil {
-		AbortError(context, err, http.StatusInternalServerError)
+		data := make([]BaseFileItemTemplate, 0)
+		for _, item := range items {
+			template := BaseFileItemTemplate{}
+			template.AssignWithYouPlusItem(item)
+			data = append(data, template)
+		}
+		context.JSON(haruka.JSON{
+			"path":  requestBody.Path,
+			"sep":   "/",
+			"files": data,
+			"back":  filepath.Dir(requestBody.Path),
+		})
 		return
+	} else {
+		infos, err := service.ReadDirectory(requestBody.Path)
+		if err != nil {
+			AbortError(context, err, http.StatusInternalServerError)
+			return
+		}
+		data := make([]BaseFileItemTemplate, 0)
+		for _, info := range infos {
+			template := BaseFileItemTemplate{}
+			template.Assign(info, requestBody.Path)
+			data = append(data, template)
+		}
+		context.JSON(haruka.JSON{
+			"path":  requestBody.Path,
+			"sep":   string(os.PathSeparator),
+			"files": data,
+			"back":  filepath.Dir(requestBody.Path),
+		})
 	}
-	abs, _ := filepath.Abs(requestBody.Path)
-	context.JSON(map[string]interface{}{
-		"path":  abs,
-		"sep":   string(filepath.Separator),
-		"files": items,
-		"back":  filepath.Dir(requestBody.Path),
-	})
 }
 var initEngineHandler haruka.RequestHandler = func(context *haruka.Context) {
 	uid := context.GetQueryString("uid")
@@ -56,6 +77,5 @@ var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 	context.JSON(haruka.JSON{
 		"name":       "YouDownload serivce",
 		"authEnable": config.Instance.AuthEnable,
-		"authUrl":    config.Instance.AuthRel,
 	})
 }

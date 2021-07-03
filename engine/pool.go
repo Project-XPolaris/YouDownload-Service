@@ -43,4 +43,5 @@ type Task interface {
 	TaskStatus() TaskStatus
 	GetSaveTask() SaveTask
 	GetCreateTime() time.Time
+	GetInfo() interface{}
 }

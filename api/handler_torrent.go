@@ -18,15 +18,14 @@ var createMargetTask haruka.RequestHandler = func(context *haruka.Context) {
 	err := context.ParseJson(&requestBody)
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
+		return
 	}
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	task, err := service.Engine.CreateMagnetTask(requestBody.Link)
-	if err != nil {
-		AbortError(context, err, http.StatusInternalServerError)
-	}
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -56,6 +55,7 @@ var createTorrentTask haruka.RequestHandler = func(context *haruka.Context) {
 	service, err := hub.DefaultHub.GetService(context.Param["uid"].(string))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	filePath := filepath.Join(service.Engine.Config.TempDir, handler.Filename)
 	filePathAbs, _ := filepath.Abs(filePath)

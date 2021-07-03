@@ -1,0 +1,7 @@
+addr: :5700
+paths:
+  download: ./data
+auth:
+  enable: true
+  url: "http://localhost:8999"
+  rel: "http://localhost:8999/user/auth"

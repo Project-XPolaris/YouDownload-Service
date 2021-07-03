@@ -34,7 +34,7 @@ var LoginHandler haruka.RequestHandler = func(context *haruka.Context) {
 		})
 		return
 	}
-	auth, err := youplus.DefaultAuthClient.FetchUserAuth(requestBody.Username, requestBody.Password)
+	auth, err := youplus.DefaultClient.FetchUserAuth(requestBody.Username, requestBody.Password)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -67,7 +67,16 @@ var InitUser haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	err = service.InitUser(context.Param["uid"].(string), requestBody.DataPath)
+	dataPath := requestBody.DataPath
+	if config.Instance.PathEnable {
+		realPath, err := youplus.DefaultClient.GetRealPath(dataPath, context.Param["token"].(string))
+		if err != nil {
+			AbortError(context, err, http.StatusBadRequest)
+			return
+		}
+		dataPath = realPath
+	}
+	err = service.InitUser(context.Param["uid"].(string), dataPath)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
