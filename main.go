@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	srv "github.com/kardianos/service"
+	"github.com/project-xpolaris/youplustoolkit/util"
+	entry "github.com/project-xpolaris/youplustoolkit/youplus/entity"
 	"github.com/projectxpolaris/youdownload-server/api"
 	"github.com/projectxpolaris/youdownload-server/config"
 	"github.com/projectxpolaris/youdownload-server/database"
@@ -62,6 +64,52 @@ func Program() {
 		Logger.Fatal(err)
 	}
 	hub.InitHub()
+	if len(config.Instance.YouPlusRPCAddr) > 0 {
+		Logger.Info("check youplus rpc [checking]")
+		err = youplus.LoadYouPlusRPCClient()
+		if err != nil {
+			Logger.WithFields(logrus.Fields{
+				"url": config.Instance.YouPlusRPCAddr,
+			}).Fatal(err.Error())
+		}
+
+		Logger.WithFields(logrus.Fields{
+			"url": config.Instance.YouPlusRPCAddr,
+		}).Info("check youplus rpc service [pass]")
+
+	}
+	// youplus entity
+	if config.Instance.Entity.Enable {
+		Logger.Info("register entity")
+		youplus.InitEntity()
+
+		err := youplus.DefaultEntry.Register()
+		if err != nil {
+			Logger.Fatal(err.Error())
+		}
+
+		addrs, err := util.GetHostIpList()
+		urls := make([]string, 0)
+		for _, addr := range addrs {
+			urls = append(urls, fmt.Sprintf("http://%s%s", addr, config.Instance.Addr))
+		}
+		if err != nil {
+			Logger.Fatal(err.Error())
+		}
+		err = youplus.DefaultEntry.UpdateExport(entry.EntityExport{Urls: urls, Extra: map[string]interface{}{}})
+		if err != nil {
+			Logger.Fatal(err.Error())
+		}
+
+		err = youplus.DefaultEntry.StartHeartbeat(context.Background())
+		if err != nil {
+			Logger.Fatal(err.Error())
+		}
+		Logger.WithFields(logrus.Fields{
+			"url": config.Instance.YouPlusRPCAddr,
+		}).Info("success register entity")
+
+	}
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go api.RunApiApplication()
@@ -215,12 +263,6 @@ func RunApp() {
 	}
 }
 func main() {
-	// flags
-	_, err := flags.ParseArgs(&opts, os.Args)
-	if err != nil {
-		logrus.Fatal(err)
-		return
-	}
 	// service
 	workPath, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {

@@ -5,3 +5,8 @@ youplus:
   auth: false
   pathEnable: false
   url: "http://localhost:8999"
+  rpc: 'localhost:50055'
+  entity:
+    enable: true
+    name: "youdownloadcore"
+    version: 1
