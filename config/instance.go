@@ -17,6 +17,7 @@ type Config struct {
 	YouPlusUrl     string
 	YouPlusRPCAddr string
 	Entity         EntityConfig
+	Aria2Url       string
 }
 
 func ReadConfig() error {
@@ -34,6 +35,7 @@ func ReadConfig() error {
 	configer.SetDefault("youplus.auth", false)
 	configer.SetDefault("youplus.pathEnable", false)
 	configer.SetDefault("youplus.url", "http://localhost:8999")
+	configer.SetDefault("aria2Url", "ws://localhost:6800/jsonrpc")
 
 	Instance = Config{
 		Addr:           configer.GetString("addr"),
@@ -47,6 +49,7 @@ func ReadConfig() error {
 			Name:    configer.GetString("youplus.entity.name"),
 			Version: configer.GetInt64("youplus.entity.version"),
 		},
+		Aria2Url: configer.GetString("aria2Url"),
 	}
 	return nil
 }

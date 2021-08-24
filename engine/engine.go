@@ -3,9 +3,10 @@ package engine
 import (
 	"github.com/ahmetb/go-linq/v3"
 	"github.com/anacrolix/torrent"
-	"github.com/cavaliercoder/grab"
+	"github.com/myanimestream/arigo"
+	config2 "github.com/projectxpolaris/youdownload-server/config"
+	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/sirupsen/logrus"
-	"path/filepath"
 	"time"
 )
 
@@ -16,12 +17,12 @@ var (
 )
 
 type Engine struct {
-	TorrentClient      *torrent.Client
-	FileDownloadClient *grab.Client
-	Pool               *TaskPool
-	TorrentConfig      *torrent.ClientConfig
-	Database           *Database
-	Config             *EngineConfig
+	TorrentClient *torrent.Client
+	Pool          *TaskPool
+	TorrentConfig *torrent.ClientConfig
+	Database      *Database
+	Config        *EngineConfig
+	Aria2Client   *arigo.Client
 }
 
 func NewEngine(engineConfig *EngineConfig) (*Engine, error) {
@@ -36,25 +37,32 @@ func NewEngine(engineConfig *EngineConfig) (*Engine, error) {
 		Client: client,
 		Tasks:  []Task{},
 	}
-	database, err := OpenDatabase(engineConfig.DatabaseDir)
+	boltdatabase, err := OpenDatabase(engineConfig.DatabaseDir)
 	if err != nil {
 		return nil, err
 	}
+	aria2Client, err := arigo.Dial(config2.Instance.Aria2Url, "")
+	if err != nil {
+		return nil, err
+	}
+	if err != nil {
+		panic(err)
+	}
 	engine := &Engine{
-		TorrentClient:      client,
-		FileDownloadClient: grab.NewClient(),
-		Pool:               &pool,
-		TorrentConfig:      config,
-		Database:           database,
-		Config:             engineConfig,
+		TorrentClient: client,
+		Pool:          &pool,
+		TorrentConfig: config,
+		Database:      boltdatabase,
+		Config:        engineConfig,
+		Aria2Client:   &aria2Client,
 	}
 	pool.Engine = engine
 	//restore task
-	savedTasks, err := database.ReadSavedTask()
+	savedTasks, err := boltdatabase.ReadSavedTask()
 	if err != nil {
 		return nil, err
 	}
-	Logger.WithField("count", len(savedTasks)).Info("read saved task from database")
+	Logger.WithField("count", len(savedTasks)).Info("read saved task from boltdatabase")
 	for _, savedTask := range savedTasks {
 		task, err := pool.newTorrentTaskFromSaveTask(savedTask, engine)
 		if err != nil {
@@ -69,18 +77,41 @@ func NewEngine(engineConfig *EngineConfig) (*Engine, error) {
 			"name": task.Name(),
 		}).Info("restore task success")
 	}
-	saveFileDownloadTasks, err := database.ReadSavedFileDownloadTask()
+
+	//restore file download task
+	var saveFileTask []database.FileTask
+	err = database.Instance.Find(&saveFileTask).Error
 	if err != nil {
 		return nil, err
 	}
-	for _, saveFileDownloadTask := range saveFileDownloadTasks {
-		task := engine.Pool.newFileTaskFromSaveTask(saveFileDownloadTask)
-		engine.Pool.Lock()
-		engine.Pool.Tasks = append(engine.Pool.Tasks, task)
-		engine.Pool.Unlock()
-		if task.Status == Downloading {
-			go task.Run(engine)
+	for _, fileTask := range saveFileTask {
+		gid := engine.Aria2Client.GetGID(fileTask.Gid)
+		_, err = gid.GetFiles()
+		if err != nil {
+			continue
 		}
+		gidStatus, err := gid.TellStatus(fileTask.Gid, "status", "files")
+		if err != nil {
+			continue
+		}
+		downloadTask := DownloadTask{
+			TaskId:     fileTask.Id,
+			SavePath:   gidStatus.Files[0].Path,
+			Status:     Aria2StatusToTaskStatus[gidStatus.Status],
+			SaveTask:   &SaveFileDownloadTask{},
+			OnPrepare:  make(chan struct{}),
+			OnComplete: make(chan struct{}),
+			OnStop:     make(chan struct{}),
+			CreateTime: time.Now(),
+			Gid:        &gid,
+		}
+		gidUris, err := gid.GetURIs()
+		if err != nil {
+			continue
+		}
+		downloadTask.Url = gidUris[0].URI
+
+		engine.Pool.Tasks = append(engine.Pool.Tasks, &downloadTask)
 	}
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
@@ -90,13 +121,13 @@ func NewEngine(engineConfig *EngineConfig) (*Engine, error) {
 				for _, task := range engine.Pool.Tasks {
 					switch task.(type) {
 					case *DownloadTask:
-						save := task.GetSaveTask().(*SaveFileDownloadTask)
-						if save == nil {
-							continue
-						}
-						save.BytesComplete = task.ByteComplete()
-						save.Length = task.Length()
-						save.Save(engine.Database)
+						//save := task.GetSaveTask().(*SaveFileDownloadTask)
+						//if save == nil {
+						//	continue
+						//}
+						//save.BytesComplete = task.ByteComplete()
+						//save.Length = task.Length()
+						//save.Save(engine.Database)
 					case *TorrentTask:
 						save := task.GetSaveTask().(*SavedTorrentTask)
 						if save == nil {
@@ -236,6 +267,7 @@ func (e *Engine) CreateDownloadTask(link string) Task {
 			}
 		}
 	}
+
 	task := NewDownloadTask(link, e.Config.DownloadDir)
 	go func() {
 		for {
@@ -246,16 +278,16 @@ func (e *Engine) CreateDownloadTask(link string) Task {
 					Url:        task.Url,
 					SavePath:   task.SavePath,
 					Status:     task.Status,
-					Name:       filepath.Base(task.Response.Filename),
+					Name:       task.TaskId,
 					CreateTime: task.CreateTime,
 				}
 				task.SaveTask = &saveTask
-				err := saveTask.Save(e.Database)
-				if err != nil {
-					Logger.Error(err)
-				}
+				//err := saveTask.Save(e.Database)
+				//if err != nil {
+				//	Logger.Error(err)
+				//}
 			case <-task.OnComplete:
-				task.SaveTask.Save(e.Database)
+				//task.SaveTask.Save(e.Database)
 				return
 			}
 		}

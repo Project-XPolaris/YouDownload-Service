@@ -2,11 +2,19 @@ package engine
 
 import (
 	"github.com/anacrolix/torrent"
+	"github.com/myanimestream/arigo"
 	"sync"
 	"time"
 )
 
 type TaskStatus int
+
+var Aria2StatusToTaskStatus = map[arigo.DownloadStatus]TaskStatus{
+	arigo.StatusActive:    Estimate,
+	arigo.StatusWaiting:   Downloading,
+	arigo.StatusCompleted: Complete,
+	arigo.StatusPaused:    Stop,
+}
 
 const (
 	Estimate TaskStatus = iota + 1

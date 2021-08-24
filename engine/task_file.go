@@ -1,9 +1,10 @@
 package engine
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"github.com/cavaliercoder/grab"
+	"github.com/myanimestream/arigo"
+	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/rs/xid"
 	"path/filepath"
 	"time"
@@ -11,16 +12,15 @@ import (
 
 type DownloadTask struct {
 	TaskId     string
-	Request    *grab.Request
-	Response   *grab.Response
 	Url        string
 	SavePath   string
-	Cancel     context.CancelFunc
 	Status     TaskStatus
 	SaveTask   *SaveFileDownloadTask
 	OnPrepare  chan struct{}
 	OnComplete chan struct{}
+	OnStop     chan struct{}
 	CreateTime time.Time
+	Gid        *arigo.GID
 }
 
 func (t *DownloadTask) GetCreateTime() time.Time {
@@ -36,53 +36,89 @@ func (t *DownloadTask) Id() string {
 }
 
 func (t *DownloadTask) Name() string {
-	if t.Response != nil {
-		return filepath.Base(t.Response.Filename)
-	} else if t.SaveTask != nil {
-		return t.SaveTask.Name
+	if t.Gid == nil {
+		return t.TaskId
 	}
-	return t.Id()
+	files, err := t.Gid.GetFiles()
+	if err != nil || len(files) == 0 {
+		return t.Id()
+	}
+	if len(files) == 1 {
+		return filepath.Base(files[0].Path)
+	}
+	return fmt.Sprintf("%s and other %d files", filepath.Base(files[0].Path), len(files)-1)
 }
 
 func (t *DownloadTask) ByteComplete() int64 {
-	if t.Response != nil {
-		return t.Response.BytesComplete()
-	} else if t.SaveTask != nil {
-		return t.SaveTask.BytesComplete
+	if t.Gid == nil {
+		return 0
 	}
-	return 0
+	files, err := t.Gid.GetFiles()
+	if err != nil {
+		return 0
+	}
+	var totalCompleteSize int64 = 0
+	for _, file := range files {
+		totalCompleteSize += int64(file.CompletedLength)
+	}
+	return totalCompleteSize
 }
 
 func (t *DownloadTask) Length() int64 {
-	if t.Response != nil {
-		return t.Response.Size
-	} else if t.SaveTask != nil {
-		return t.SaveTask.Length
+	if t.Gid == nil {
+		return 0
 	}
-	return 0
+	files, err := t.Gid.GetFiles()
+	if err != nil {
+		return 0
+	}
+	var totalSize int64 = 0
+	for _, file := range files {
+		totalSize += int64(file.Length)
+	}
+	return totalSize
 }
 
 func (t *DownloadTask) Start() error {
+	if t.Gid == nil {
+		return errors.New("task not found")
+	}
+	t.Gid.Unpause()
 	t.Status = Downloading
 	t.SaveTask.Status = Downloading
 	return nil
 }
 
 func (t *DownloadTask) Stop() error {
-	t.Cancel()
+	if t.Gid == nil {
+		return errors.New("task not found")
+	}
 	t.Status = Stop
 	t.SaveTask.Status = Stop
+	err := t.Gid.Pause()
+	if err != nil {
+		return err
+	}
+	//t.OnStop <- struct{}{}
 	return nil
 }
 
 func (t *DownloadTask) Delete() error {
+	if t.Gid == nil {
+		return errors.New("task not found")
+	}
+	err := t.Gid.ForceRemove()
+	if err != nil {
+		return err
+	}
+	err = database.Instance.Unscoped().Model(&database.FileTask{}).Where("id = ?", t.TaskId).Error
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (t *DownloadTask) GetSpeed() int64 {
-	if t.Response != nil {
-		return int64(t.Response.BytesPerSecond())
-	}
 	return 0
 }
 
@@ -104,39 +140,45 @@ func NewDownloadTask(link string, savePath string) *DownloadTask {
 		Status:     Downloading,
 		OnPrepare:  make(chan struct{}),
 		OnComplete: make(chan struct{}),
+		OnStop:     make(chan struct{}),
 		CreateTime: time.Now(),
 	}
 }
-
+func (t *DownloadTask) Download() {
+	go func() {
+		t.Gid.WaitForDownload()
+		t.OnComplete <- struct{}{}
+	}()
+}
 func (t *DownloadTask) Run(e *Engine) {
-	request, err := grab.NewRequest(t.SavePath, t.Url)
+	gid, err := e.Aria2Client.AddURI([]string{t.Url}, &arigo.Options{Dir: t.SavePath})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	request.BufferSize = 1024
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cancel = cancel
-	request = request.WithContext(ctx)
-	Logger.WithField("id", t.TaskId).WithField("url", request.URL()).Info("Downloading")
-	t.Request = request
-	// request download url
-	response := e.FileDownloadClient.Do(request)
-	t.Response = response
+	t.Gid = &gid
+	Logger.WithField("id", t.TaskId).WithField("url", t.Url).Info("Downloading")
+	t.Download()
+	// update taskinfo
+	var count int64 = -1
+	database.Instance.Model(&database.FileTask{}).Where("gid = ?", t.Gid.GID).Count(&count)
+	if count == 0 {
+		database.Instance.Create(&database.FileTask{Gid: t.Gid.GID, UserUid: e.Config.Uid, Id: t.TaskId})
+	}
 	t.OnPrepare <- struct{}{}
 	// update with request result
 	//run for done chan
 	go func() {
 		select {
-		case <-response.Done:
+		case <-t.OnComplete:
 			t.Status = Complete
 			t.SaveTask.Status = Complete
-			t.SaveTask.Save(e.Database)
+			//t.SaveTask.Save(e.Database)
 			Logger.WithField("id", t.TaskId).Info("task complete")
 			return
-		case <-ctx.Done():
+		case <-t.OnStop:
 			t.Status = Stop
-			t.SaveTask.Save(e.Database)
+			//t.SaveTask.Save(e.Database)
 			Logger.WithField("id", t.TaskId).Info("task interrupt")
 			return
 		}

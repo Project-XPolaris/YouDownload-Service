@@ -57,6 +57,7 @@ func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
 		DownloadDir: dataPath,
 		TempDir:     tempPath,
 		TorrentPort: torrentPort,
+		Uid:         user.Uid,
 	}
 	h.Unlock()
 	e, err := engine.NewEngine(engineConfig)

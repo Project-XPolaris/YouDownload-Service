@@ -10,6 +10,7 @@ type EngineConfig struct {
 	DownloadDir string
 	TempDir     string
 	TorrentPort int
+	Uid         string
 }
 
 func NewConfig() *torrent.ClientConfig {

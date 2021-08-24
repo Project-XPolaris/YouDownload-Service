@@ -16,6 +16,6 @@ func Connect() error {
 	if err != nil {
 		return err
 	}
-	Instance.AutoMigrate(&User{})
+	Instance.AutoMigrate(&User{}, &FileTask{})
 	return nil
 }
