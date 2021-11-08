@@ -2,8 +2,8 @@ package hub
 
 import (
 	"errors"
-	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/projectxpolaris/youdownload-server/engine"
+	"github.com/projectxpolaris/youdownload-server/storage"
 	"os"
 	"path"
 	"sync"
@@ -31,8 +31,7 @@ type DownloadHub struct {
 }
 
 func (h *DownloadHub) createService(uid string) (*DownloadService, error) {
-	var user database.User
-	err := database.Instance.Where("uid = ?", uid).Find(&user).Error
+	user, err := storage.DefaultUserRepository.GetOrCreate(uid)
 	if err != nil {
 		return nil, err
 	}

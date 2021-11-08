@@ -8,8 +8,8 @@ import (
 	entry "github.com/project-xpolaris/youplustoolkit/youplus/entity"
 	"github.com/projectxpolaris/youdownload-server/api"
 	"github.com/projectxpolaris/youdownload-server/config"
-	"github.com/projectxpolaris/youdownload-server/database"
 	"github.com/projectxpolaris/youdownload-server/hub"
+	"github.com/projectxpolaris/youdownload-server/storage"
 	"github.com/projectxpolaris/youdownload-server/youplus"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -55,7 +55,7 @@ func Program() {
 	}
 	// init database
 	Logger.Info("connect to database")
-	err = database.Connect()
+	err = storage.InitDB()
 	if err != nil {
 		Logger.Fatal(err)
 	}

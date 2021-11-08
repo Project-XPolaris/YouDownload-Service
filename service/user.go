@@ -1,13 +1,12 @@
 package service
 
 import (
-	"github.com/projectxpolaris/youdownload-server/database"
+	"github.com/projectxpolaris/youdownload-server/storage"
 	"os"
 )
 
 func CheckNeedInit(username string) (bool, error) {
-	var user database.User
-	err := database.Instance.FirstOrCreate(&user, database.User{Uid: username}).Error
+	user, err := storage.DefaultUserRepository.GetOrCreate(username)
 	if err != nil {
 		return false, err
 	}
@@ -15,8 +14,7 @@ func CheckNeedInit(username string) (bool, error) {
 }
 
 func InitUser(uid string, dataPath string) error {
-	var user database.User
-	err := database.Instance.Where("uid = ?", uid).Find(&user).Error
+	user, err := storage.DefaultUserRepository.GetOrCreate(uid)
 	if err != nil {
 		return err
 	}
@@ -25,6 +23,6 @@ func InitUser(uid string, dataPath string) error {
 		return err
 	}
 	user.DataPath = dataPath
-	err = database.Instance.Save(&user).Error
+	err = storage.DefaultUserRepository.Save(user)
 	return err
 }
