@@ -11,6 +11,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/go-resty/resty/v2 v2.6.0
 	github.com/golang/protobuf v1.5.1 // indirect
+	github.com/gorilla/websocket v1.4.2
 	github.com/kardianos/service v1.2.0
 	github.com/project-xpolaris/youplustoolkit v0.0.0-20210820012521-e2723bbd3150
 	github.com/rs/cors v1.8.0

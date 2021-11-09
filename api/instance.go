@@ -29,6 +29,8 @@ func RunApiApplication() {
 	e.Router.POST("/hub/init", initEngineHandler)
 	e.Router.POST("/user/auth", LoginHandler)
 	e.Router.POST("/user/init", InitUser)
+	e.Router.AddHandler("/notification", notificationSocketHandler)
 	e.UseMiddleware(&AuthMiddleware{})
+	go RunMonitor()
 	e.RunAndListen(config.Instance.Addr)
 }

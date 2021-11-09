@@ -27,7 +27,7 @@ type BaseTaskTemplate struct {
 	ETA        int64       `json:"eta"`
 	Extra      interface{} `json:"extra"`
 	Type       string      `json:"type"`
-	CreateTime string      `json:"CreateTime"`
+	CreateTime string      `json:"createTime"`
 }
 
 func (t *BaseTaskTemplate) Serializer(dataModel interface{}, context map[string]interface{}) error {
